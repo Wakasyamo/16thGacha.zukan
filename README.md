@@ -1,2 +1,0 @@
-# 16thGacha.zukan
-a

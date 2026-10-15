@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>16期 文字ガチャ・名前コンプリート図鑑</title>
+<style>
+:root{color-scheme:light;--ink:#202333;--muted:#687084;--line:#e2e5ec;--bg:#f5f6fa;--blue:#5365d8;--green:#18865c;--red:#c84b55}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Yu Gothic",Meiryo,sans-serif}
+header{background:#242946;color:white;padding:24px max(18px,calc((100vw - 1100px)/2))}h1{font-size:clamp(22px,4vw,32px);margin:0 0 8px}header p{margin:0;color:#dce0f7}
+main{max-width:1100px;margin:22px auto;padding:0 16px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 4px 18px #20233308}
+h2{font-size:19px;margin:0 0 12px}.help{font-size:13px;color:var(--muted);line-height:1.7}textarea{width:100%;min-height:150px;border:1px solid #cbd0dc;border-radius:10px;padding:12px;font:inherit;resize:vertical}
+button{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:white;font:inherit;font-weight:700;cursor:pointer}button.secondary{background:#e9ebf4;color:#343b59}button:hover{filter:brightness(.97)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.stat{background:#f6f7fc;border-radius:12px;padding:13px}.stat strong{display:block;font-size:25px}.stat span{font-size:12px;color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.filters input,.filters select{border:1px solid #cbd0dc;border-radius:9px;padding:9px;font:inherit;background:white}
+.person{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}.person-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.person h3{margin:0;font-size:17px}.pill{font-size:12px;font-weight:700;border-radius:99px;padding:5px 9px;background:#ffeded;color:var(--red)}.pill.done{background:#e2f7ed;color:var(--green)}
+.missing{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}.char{display:inline-flex;align-items:center;gap:5px;border:1px solid #f0c7cb;background:#fff5f5;color:#9d2934;border-radius:8px;padding:5px 8px;font-size:14px}.char small{opacity:.7}.complete-msg{color:var(--green);font-weight:700;margin-top:10px}
+#inventory{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:7px}.tile{border:1px solid var(--line);border-radius:9px;text-align:center;padding:9px 3px;background:#fff}.tile.got{border-color:#b8e4d0;background:#effbf5}.tile.miss{background:#fff1f1;border-color:#f0c4c7}.tile b{display:block;font-size:21px}.tile small{font-size:11px;color:var(--muted)}
+@media(max-width:550px){.stats{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:span 2}header{padding:20px 16px}}
+</style></head><body>
+<header><h1>📚 16期 文字ガチャ｜名前コンプリート図鑑</h1><p>MHTファイルから読み取った文字の所持状況を使い、名前ごとの不足文字をチェックします。</p></header>
+<main>
+<section class="panel"><h2>0. 最新のMHTファイルを読み込む</h2>
+<p class="help">文字ガチャのページから保存した最新の .mht ファイルを選択してください。読み込むたびに図鑑の文字と所持数が更新されます。ファイルはこのブラウザ内で読み取り、外部には送信しません。</p>
+<input id="mhtFile" type="file" accept=".mht,.mhtml,message/rfc822" style="display:block;max-width:100%;margin:10px 0">
+<p id="fileStatus" class="help">まだMHTファイルが読み込まれていません。</p></section>
+<section class="panel"><h2>1. 名前一覧を入力</h2><p class="help">名前を1行に1人ずつ入力してください。姓名の間のスペースは無視して判定します。例：<br>山田 太郎<br>佐藤花子<br>田中 翔</p>
+<textarea id="names" placeholder="ここに名前一覧を貼り付け&#10;山田 太郎&#10;佐藤 花子"></textarea>
+<div class="actions"><button id="check">名前を判定する</button><button class="secondary" id="sample">サンプルを入れる</button><button class="secondary" id="clear">名前を消す</button></div>
+<p class="help">判定ルール：名前に含まれる文字の出現回数と、MHTに記録された所持数を比較します。同じ文字が名前に2回出る場合は、その文字を2個以上所持している必要があります。空白や記号は無視します。</p></section>
+<section class="panel"><h2>2. 集計</h2><div class="stats"><div class="stat"><strong id="totalPeople">0</strong><span>判定した人数</span></div><div class="stat"><strong id="completePeople">0</strong><span>コンプリートした人数</span></div><div class="stat"><strong id="ownedSummary">0 / 0</strong><span>所持文字種（図鑑）</span></div></div></section>
+<section class="panel"><h2>3. 名前ごとの結果</h2><div class="filters"><input id="search" placeholder="名前で検索"><select id="status"><option value="all">すべて表示</option><option value="missing">未コンプリートのみ</option><option value="done">コンプリートのみ</option></select></div><div id="results"><p class="help">名前一覧を入力して「名前を判定する」を押してください。</p></div></section>
+<section class="panel"><h2>4. 文字の所持状況</h2><p class="help">MHTの図鑑表示を元にした所持数です。文字を検索して確認できます。</p><div class="filters"><input id="charSearch" placeholder="文字を検索"><select id="charStatus"><option value="all">すべての文字</option><option value="got">所持している</option><option value="miss">未所持</option></select></div><div id="inventory"></div></section>
+</main>
+<script>
+let inventory = [];
+let owned = new Map();
+const normalize = s => s.normalize('NFC').replace(/[\s　・･\-‐‑–—.,，。]/g,'');
+let people = [];
+const $ = id => document.getElementById(id);
+async function loadMht(file){
+  if(!file) return;
+  $('fileStatus').textContent='MHTファイルを読み込んでいます…';
+  try{
+    const raw=await file.text();
+    // MHTML consists of MIME parts. Locate the HTML part and remove its MIME headers.
+    const marker=/Content-Type:\s*text\/html[^\r\n]*[\s\S]*?\r?\n\r?\n/i;
+    const match=marker.exec(raw);
+    if(!match) throw new Error('MHT内にHTML部分が見つかりません。');
+    const bodyStart=match.index+match[0].length;
+    const boundaryMatch=raw.match(/boundary="([^"]+)"/i);
+    let body=raw.slice(bodyStart);
+    if(boundaryMatch){
+      const next=body.indexOf('--'+boundaryMatch[1]);
+      if(next>=0) body=body.slice(0,next);
+    }
+    const doc=new DOMParser().parseFromString(body,'text/html');
+    const section=doc.querySelector('#page-zukan');
+    if(!section) throw new Error('図鑑データ（#page-zukan）が見つかりません。文字ガチャのページから保存したMHTか確認してください。');
+    const tiles=[...section.querySelectorAll('.zk-grid .tile, #zk-grid .tile')];
+    if(!tiles.length) throw new Error('図鑑の文字一覧が見つかりません。');
+    const nextInventory=[];
+    for(const tile of tiles){
+      const cnt=tile.querySelector('.cnt');
+      const copy=tile.cloneNode(true);
+      copy.querySelectorAll('.cnt').forEach(el=>el.remove());
+      const char=copy.textContent.replace(/\s+/g,'').trim();
+      if(!char) continue;
+      const count=cnt ? Number(cnt.textContent.replace(/,/g,'').trim()) : 0;
+      nextInventory.push({char,count:Number.isFinite(count)?count:0,got:count>0});
+    }
+    inventory=nextInventory;
+    owned=new Map(inventory.map(x=>[x.char,x.count]));
+    $('fileStatus').textContent=`読み込み成功：${file.name}（${inventory.length}種類／所持数を反映）`;
+    renderInventory();
+    evaluateNames();
+  }catch(err){
+    $('fileStatus').textContent='読み込み失敗：'+err.message;
+  }
+}
+function evaluateNames(){
+  people = $('names').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(raw=>{
+    const name=normalize(raw);
+    const counts=new Map();
+    for(const c of name){
+      if(/[\p{L}\p{N}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(c))
+        counts.set(c,(counts.get(c)||0)+1);
+    }
+    const missing=[...counts.entries()].filter(([c,needed])=>(owned.get(c)||0)<needed)
+      .map(([c,needed])=>({char:c,needed,have:owned.get(c)||0,shortage:needed-(owned.get(c)||0)}));
+    return {raw,missing,counts};
+  });
+  renderResults();
+}
+function renderResults(){
+  const q=$('search').value.trim().toLowerCase(), status=$('status').value;
+  const shown=people.filter(p=>(!q||p.raw.toLowerCase().includes(q))&&(status==='all'||(status==='done'?!p.missing.length:!!p.missing.length)));
+  $('totalPeople').textContent=people.length;
+  $('completePeople').textContent=people.filter(p=>!p.missing.length).length;
+  $('ownedSummary').textContent=`${inventory.filter(x=>x.count>0).length} / ${inventory.length}`;
+  if(!shown.length){$('results').innerHTML='<p class="help">該当する名前はありません。</p>';return}
+  $('results').innerHTML=shown.map(p=>`<article class="person"><div class="person-top"><h3>${escapeHtml(p.raw)}</h3><span class="pill ${p.missing.length?'':'done'}">${p.missing.length?'不足 '+p.missing.length+' 種類':'コンプリート！'}</span></div>${p.missing.length?`<div class="missing">${p.missing.map(m=>`<span class="char">${escapeHtml(m.char)} <small>所持 ${m.have} / 必要 ${m.needed}（あと ${m.shortage}）</small></span>`).join('')}</div>`:'<div class="complete-msg">名前に必要な文字はすべて集まっています。</div>'}</article>`).join('');
+}
+function renderInventory(){
+ const q=$('charSearch').value.trim(), st=$('charStatus').value;
+ const arr=inventory.filter(x=>(!q||x.char.includes(q))&&(st==='all'||(st==='got'?x.count>0:x.count<=0)));
+ $('inventory').innerHTML=arr.map(x=>`<div class="tile ${x.count>0?'got':'miss'}"><b>${escapeHtml(x.char)}</b><small>${'所持 '+x.count+' 個'}</small></div>`).join('');
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+$('mhtFile').addEventListener('change',e=>loadMht(e.target.files[0]));
+$('check').addEventListener('click',evaluateNames);
+$('sample').addEventListener('click',()=>{$('names').value='白井 裕輔\n青木 翔太郎\n天野 陽菜\n安藤 楓花\n李知侯\n石川 生蕗\n石本 彩乃\n稲垣 夏菜\n犬上煌人\n大久保 幸太\n太田 千晶\n川村 彩乃\n菊池晃之介\n木元菜結\n小泉 瑠愛\n髙津 諒大\n齋藤 悠吾\n櫻井莉子\n佐藤奏\n清水 仁子\n鈴木 希怜\n田中 翔也\n辻󠄀諒\n津田 有彩\n中野 大翔\n新原 那乃香\n福井 ひなた\n二口 達成\n古田 さくら\n古本 ルカ\n前川 悠太朗\n松川 結希\n水野 明斗\n峯岸夏希\n山口 夏輝\n米山悠翔\n渡邉 碧海\n渡辺 凜々子\n氏田 朋子\n秋山空\n天野 英楓\n飯沼 訊矢\n井垣茜\n石神 優斗\n石田 妃里\n石渡 武志\n伊東 武蔵\n稲川凜花\n永代 和奏\n勝屋 心優\n神田 篤志\n河野 朋華\n後藤 洸哉\n清水 苺香\n下川 夕馨\n末永 紗渚\n鈴木一花\n武田 悠作\n田中萌琳\n為則花音\n寺澤南\n中川 景太\n中津亜彩\n成野悠帆\n橋本 龍之介\n日向 七美\n平田 千乃\n渕上 陸離\n光本周一郎\n村上 真世\n百瀬友梨\n山口 遥大\n山崎 祐菜\n吉田 有希\n李太雄\n長屋 篤実\n青山 華凛\n新川葉識\n安藤 颯来\n池田 琉馬\n伊藤羽南\n今井 翔梧\n白田 梨七\n遠藤 広晴\n大松 荘大\n小原 幸大\n片岡 和奏\n神谷 友汰\n輕部 明葉\n紀平一磨\n木村 真奈美\n黒田 翼\n小泉 怜奈\n小岩 旭飛\n小浜 陽香里\n佐野 詩花\n佐谷 ひばり\n陶夢瞳\n高松 沙妃\n武井洸\n田嶋沙都\n多田 鈴乃\n種部夢香\n津田 悠暉\n土屋 日南乃\n鶴田 紗希子\n中川衛\n波賀多俊雄\n林真弘\n松本 雪野\n宮野 祐綺\n宮本 咲良\n門馬直翔\n柳亮太朗\n石澤 昌大\n赤岩美羽\n芦田 梨咲\n足立雅香\n五十嵐 柊司\n池田 慈雨\n石川響\n桶谷 奈加\n長部 未希\n角竹陽奈子\n栗林円\n後藤 宇莉\n小林温太\n小松 宥揮\n櫻田 結衣\n立澤梨央\n立石 優里菜\n鶴田 龍之介\n東條玲\n富田 しおり\n中川 航志\n 中村梨乃\n丹羽優菜\n橳島 亜美\n野田 健市\n橋詰 翔太\n服部 拓巳\n福沢富\n福山 翠桜\n前田 明希\n前田 光輝\n松元友花\n三星 香乃\n三村 陽花\n矢野 文也\n山本 涼音\n吉野諒人\n渡邊仁朗';evaluateNames()});
+$('clear').addEventListener('click',()=>{$('names').value='';people=[];renderResults()});
+$('search').addEventListener('input',renderResults);$('status').addEventListener('change',renderResults);
+$('charSearch').addEventListener('input',renderInventory);$('charStatus').addEventListener('change',renderInventory);
+renderInventory();
+</script></body></html>
